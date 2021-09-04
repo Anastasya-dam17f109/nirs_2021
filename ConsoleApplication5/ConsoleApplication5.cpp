@@ -6,7 +6,7 @@
 #include "SEM_games.h"
 int main()
 {
-    std::cout << "Hello World!\n"; 
+   // std::cout << "Hello World!\n"; 
 	
 	
 	//SEM_games(35, "normal", 1, 1, 1, 0.001, false,false);

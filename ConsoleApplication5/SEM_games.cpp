@@ -159,9 +159,9 @@ void SEM_games::mixture_inicalization() {
 		}
 	}
 	targs[0].brightness = re_targ_shift;
-	targs[0].size = 25;
-	targs[0].x = backg_size / 2 - 1 - 25 / 2;
-	targs[0].y = backg_size / 2 - 1 - 25 / 2;
+	targs[0].size = 27;
+	targs[0].x = backg_size / 2 - 1 - targs[0].size / 2;
+	targs[0].y = backg_size / 2 - 1 - targs[0].size / 2;
 	targs[0].mix_type = 2;
 	re_cl_amount = 2;
 	
@@ -230,7 +230,7 @@ void SEM_games::img_generator() {
 	int amount_brigh_trg = amount_trg / class_amount;
 	if (amount_brigh_trg == 0)
 		amount_brigh_trg = 1;
-	min_targ_size = 25;
+	min_targ_size = 27;
 	target_pixels = new double[min_targ_size*min_targ_size];
 	for (int i = 0; i < amount_trg; i++) {
 		targ_size[i] = min_targ_size + i * 2;
@@ -5244,7 +5244,7 @@ void SEM_games::FAR_computation() {
 	/*n_hit = 0.0;
 	n_miss = 0.0;
 	n_detect = 0.0;*/
-	
+	cout << "x_min, x_max  " << x_min << " " << x_max << " "<<y_min << " " << y_max << endl;
     #pragma omp parallel
 	{
 		#pragma omp for
@@ -5280,7 +5280,7 @@ void SEM_games::FAR_computation() {
 	}
 	 
 	
-	cout << "real far: " << rfar/ (image_len*image_len - 25* 25) << endl;
+	cout << "real far: " << rfar/ (image_len*image_len - targs[0].size * targs[0].size) << endl;
 	cout << "all_mistakes: " << all_mistakes << endl;
 	cout << "mistakes for each mixture: ";
 	for (int i = 0; i < hyp_cl_amount; i++) {
@@ -5288,7 +5288,7 @@ void SEM_games::FAR_computation() {
 	}
 	cout << endl;
 	delete[] mistake_mix;
-	delete[] buf_numbs;
+	
 }
 
 // отрисовка на python
