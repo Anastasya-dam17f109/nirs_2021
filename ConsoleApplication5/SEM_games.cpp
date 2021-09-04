@@ -5,7 +5,7 @@ boost::random::mt19937 generator_S{ static_cast<std::uint32_t>(time(0)) };
 
 SEM_games::SEM_games(int img_size, string mix_t, int amount_targets, int classes, unsigned h_classes, double acc, bool file_flag, bool draw_flag)
 {
-	std::cout << "Hello World!\n";
+	//std::cout << "Hello World!\n";
 	image_len = img_size * amount_targets;
 	mixture_type = mix_t;
 	amount_trg = amount_targets;
