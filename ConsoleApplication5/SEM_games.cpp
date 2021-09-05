@@ -47,9 +47,9 @@ SEM_games::SEM_games(int img_size, string mix_t, int amount_targets, int classes
 				//BIC();
 				//SEMalgorithm_median();
 				//BIC();
-				SEMalgorithm_median_mean_OMP();
+				/*SEMalgorithm_median_mean_OMP();
 				dist_computation();
-				statistics_creation("D:\\SEM_mean_statistics.txt");
+				statistics_creation("D:\\SEM_mean_statistics.txt");*/
 
 				SEMalgorithm_median_mean2_OMP();
 				dist_computation();
@@ -4941,6 +4941,8 @@ int SEM_games::kolmogorov_stats(double* data, int data_size) {
 	for (i = 0; i < hyp_cl_amount; ++i) {
 		F_n_curr = 0;
 		max_d_n = 0;
+		/*mix_shift[i] = re_mix_shift[i];
+		mix_scale[i] = re_mix_scale[i];*/
 		if (mixture_type == "normal")
 			max_d_n = cdf(normal(mix_shift[i], mix_scale[i]), min_value);
 		if (mixture_type == "rayleigh")
