@@ -10,7 +10,7 @@ int main()
    std::cout << "Hello World, my darling!\n"; 
 	
 	//SEM_games(35, "normal", 1, 1, 1, 0.001, false,false);
-	SEM_games(35, "normal", 1, 1, 2, 0.001, true, true);
+	SEM_games(35, "normal", 1, 1, 2, 0.001, false, true);
 	/*SEM_games(35, "rayleigh", 1, 1, 2, 0.001, true, true);*/
 	//SEM_games(35, "normal", 1, 1, 1, 0.001, true);
 	system("pause");

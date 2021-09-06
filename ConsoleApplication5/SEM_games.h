@@ -130,6 +130,7 @@ public:
 	void FAR_computation();
 	void dist_computation();
 	void statistics_creation(string filename);
+	void statistics_to_csv(string filename, string alg_nme);
 
 	void SEMalgorithm();
 	void SEMalgorithm_OMP();

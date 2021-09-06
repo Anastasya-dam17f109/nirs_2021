@@ -41,7 +41,7 @@ SEM_games::SEM_games(int img_size, string mix_t, int amount_targets, int classes
 		else
 		{
 			mix_params_amount = 2;
-			for (int i = 0; i < 1; ++i) {
+			for (int i = 0; i < 100; ++i) {
 				SEMalgorithm_OMP();
 				dist_computation();
 				statistics_creation("D:\\SEM_statistics.txt");
@@ -59,6 +59,8 @@ SEM_games::SEM_games(int img_size, string mix_t, int amount_targets, int classes
 			//BIC();
 		}
 	}
+	statistics_to_csv("D:\\SEM_statistics.txt","SEM");
+	statistics_to_csv("D:\\SEM_mean2_statistics.txt", "SEM_mean2");
 	//cout << "Chi_stat for estimated paramas: class_number " << chi_square_stats(mixture_image_one_mass, image_len*image_len) << endl;
 	split_image();
 	create_splitted_img();
@@ -161,7 +163,7 @@ void SEM_games::mixture_inicalization() {
 		}
 	}
 	targs[0].brightness = re_targ_shift;
-	targs[0].size = 27;
+	targs[0].size = 25;
 	targs[0].x = backg_size / 2 - 1 - targs[0].size / 2;
 	targs[0].y = backg_size / 2 - 1 - targs[0].size / 2;
 	targs[0].mix_type = 2;
@@ -232,7 +234,9 @@ void SEM_games::img_generator() {
 	int amount_brigh_trg = amount_trg / class_amount;
 	if (amount_brigh_trg == 0)
 		amount_brigh_trg = 1;
-	min_targ_size = 27;
+	//
+	min_targ_size = 25;
+	//
 	target_pixels = new double[min_targ_size*min_targ_size];
 	for (int i = 0; i < amount_trg; i++) {
 		targ_size[i] = min_targ_size + i * 2;
@@ -242,7 +246,7 @@ void SEM_games::img_generator() {
 	re_mix_shift[0] = 128.0;
 	re_mix_scale[0] = 37.0;
 	re_mix_shift[1] = targ_bright[0];
-	re_mix_scale[1] = 1.5;
+	re_mix_scale[1] = 30.0;
 	int itr = 0;
 	for (int i = 0; i < amount_trg; i++) {
 		if (i > 0 && targ_bright[i] != targ_bright[i - 1]) {
@@ -2566,7 +2570,7 @@ void SEM_games::SEMalgorithm_median_mean_raygh_OMP() {
 	//вначале итеративная реализация
 	cout << endl;
 	cout << endl;
-	cout << "SEM with median_mean estimation - omp version" << endl;
+	cout << "SEM with median_mean estimation - o_mp version. handling a rayleigh distribution case" << endl;
 	boost::random::uniform_01 <> dist_poly;
 	auto begin = std::chrono::steady_clock::now();
 	int est_amount = 3;
@@ -2940,7 +2944,7 @@ void SEM_games::SEMalgorithm_median_mean_raygh_OMP() {
 	delete[] mix_scale_2;
 }
 
-
+// раскраска изображения с использованием или критерия хи-квадрат, или колмогорова
 
 void SEM_games::split_image() {
 
@@ -2948,6 +2952,16 @@ void SEM_games::split_image() {
 	int iters_i = image_len / length_;
 	int x_l, y_l, idx_class;
 	double* buf_img = new double [4* length_*length_];
+	double* buf_mix_shift = new double[hyp_cl_amount + 1];
+	double* buf_mix_scale = new double[hyp_cl_amount + 1];
+
+	for (int i = 0; i < hyp_cl_amount; ++i) {
+		buf_mix_shift[i] = mix_shift[i];
+		buf_mix_scale[i] = mix_scale[i];
+	}
+	buf_mix_shift[hyp_cl_amount] = re_mix_shift[0];
+	buf_mix_scale[hyp_cl_amount] = re_mix_scale[0];
+
 	auto mix_split_classic = [&](int x_c, int y_c, int x_l, int y_l) {
 		for (int i = x_c; i < x_c+ x_l; i++) {
 			for (int j = y_c; j < y_c+ y_l; j++) {
@@ -2964,14 +2978,8 @@ void SEM_games::split_image() {
 			}
 		}
 	};
-	double* buf_mix_shift = new double[hyp_cl_amount+1];
-	double* buf_mix_scale = new double[hyp_cl_amount +1];
-	for (int i = 0; i < hyp_cl_amount; ++i) {
-		buf_mix_shift[i] = mix_shift[i];
-		buf_mix_scale[i] = mix_scale[i];
-	}
-	buf_mix_shift[hyp_cl_amount] = re_mix_shift[0];
-	buf_mix_scale[hyp_cl_amount] = re_mix_scale[0];
+	
+	
 	for (int i = 0; i < iters_i; ++i) {
 		for (int j = 0; j < iters_i; ++j) {
 			if (i == iters_i - 1)
@@ -3015,6 +3023,45 @@ void SEM_games::create_splitted_img() {
 	out.close();
 }
 
+// перевод статистики в формат csv
+
+void SEM_games::statistics_to_csv(string filename, string alg_nme) {
+
+	out.open("D:\\"+mixture_type+"_"+ alg_nme + "_statistics.csv");
+	ifstream f;                     // создаем поток
+	string buffer;
+	std::string tmp;
+	out << "size;";
+	for (int i = 0; i < hyp_cl_amount; ++i) 
+		out << "shift_"<<i+1<<";";
+	for (int i = 0; i < hyp_cl_amount; ++i)
+		out << "scale_" << i + 1 << ";";
+	out << endl;
+	out << 0<<";";
+	f.open(filename);
+	
+	getline(f,buffer);
+	getline(f, buffer);
+	std::istringstream ist0(buffer);
+	string print_buf0 = "";
+	while (ist0 >> tmp)
+		print_buf0 += tmp + ";";
+	print_buf0 = print_buf0.substr(0, print_buf0.length() - 1);
+	out << print_buf0 << endl;
+	while (getline(f, buffer)) {
+		std::istringstream ist_i(buffer);
+		string print_buf = "";
+		while (ist_i >> tmp)
+			print_buf+= tmp + ";";
+		print_buf = print_buf.substr(0, print_buf.length() - 1);
+		
+		out << print_buf<< endl;
+	}
+
+	f.close();
+	out.close();
+}
+
 // накопление статистики
 
 void SEM_games::statistics_creation(string filename) {
@@ -3025,9 +3072,11 @@ void SEM_games::statistics_creation(string filename) {
 	double* buf_mix_scale = new double[re_cl_amount];
 	bool re_wr_flag = false;
 	int diff_amount = 0;
+	//проверяем, есть ли такой файл, если нет - создаем 
 	if (f) {
+		// файл есть, проверяем, соответствует ли распределение смеси в нем наблюдаемому в текущем запуске программы...
 		f >> m_type;
-		cout << m_type << endl;
+		
 		if (m_type == mixture_type) {
 			for (int i = 0; i < re_cl_amount; ++i)
 				f >> buf_mix_shift[i] ;
@@ -3039,10 +3088,11 @@ void SEM_games::statistics_creation(string filename) {
 				if (buf_mix_shift[i] != re_mix_shift[i])
 					diff_amount++;
 			}
-			
+			//различий нет, делаем дозапись
 			if (diff_amount == 0) {
 				ofstream f1;
 				f1.open(filename, std::ios::app);
+				f1 << targs[0].size << " ";
 				for (int i = 0; i < hyp_cl_amount; ++i)
 					f1 << mix_shift[buf_numbs[i] - 1] << " ";
 				for (int i = 0; i < hyp_cl_amount; ++i)
@@ -3060,7 +3110,7 @@ void SEM_games::statistics_creation(string filename) {
 	}
 	else
 		re_wr_flag = true;
-	
+	//различия есть, переписываем все нафиг
 	if(re_wr_flag){
 		ofstream f1;
 		f1.open(filename);
@@ -3070,6 +3120,7 @@ void SEM_games::statistics_creation(string filename) {
 		for (int i = 0; i < re_cl_amount; ++i)
 			f1 << re_mix_scale[i] << " ";
 		f1 << endl;
+		f1 << targs[0].size << " ";
 		for (int i = 0; i < hyp_cl_amount; ++i)
 			f1 << mix_shift[buf_numbs[i]-1] << " ";
 		for (int i = 0; i < hyp_cl_amount; ++i)
@@ -4587,11 +4638,9 @@ double SEM_games::find_med(double* window, int wind_size) {
 	return 	window[med_index];
 }
 
-//вычисление медианы
+//копирование участка изображения в одномерный массив
 
 void SEM_games::copy_in_one_mass(double* image_one_mass , int x_c, int y_c, int x_l, int y_l) {
-
-
 	int idx = 0;
 	int i, j ;
 	for (i = x_c; i < x_c+ x_l; ++i) {
@@ -4600,8 +4649,6 @@ void SEM_games::copy_in_one_mass(double* image_one_mass , int x_c, int y_c, int 
 			idx++;
 		}
 	}
-	
-	
 }
 
 //вычисление k-той порядковой статистики в массиве
@@ -4745,72 +4792,72 @@ int SEM_games::chi_square_stats(double* data, int data_size) {
 
 	
 
-cout << "buf_intervals_amount " << buf_intervals_amount << endl;
-for (int j = 0; j < buf_intervals_amount; ++j) {
-	cout << " j " << interval_bounds[j] <<" "<< nu_i_bounds[j]<< endl;
-}
+	cout << "buf_intervals_amount " << buf_intervals_amount << endl;
+	for (int j = 0; j < buf_intervals_amount; ++j) {
+		cout << " j " << interval_bounds[j] <<" "<< nu_i_bounds[j]<< endl;
+	}
 
-auto chi_stat_computation = [&](double* shift, double* scale, int size_) {
-	unsigned i, j;
-	double chi_stat;
-	double teor_nu;
+	auto chi_stat_computation = [&](double* shift, double* scale, int size_) {
+		unsigned i, j;
+		double chi_stat;
+		double teor_nu;
 	
-	double quant_chi = quantile(chi_squared(intervals_amount - 1 - 1), 0.95);
-	int* flag_mass = new int[size_];
-	int flag_summ = 0;
-	int flag_idx = 0;
+		double quant_chi = quantile(chi_squared(intervals_amount - 1 - 1), 0.95);
+		int* flag_mass = new int[size_];
+		int flag_summ = 0;
+		int flag_idx = 0;
 
-	//cout << " quant_chi  - " << quant_chi << endl;
+		//cout << " quant_chi  - " << quant_chi << endl;
 
-	for (i = 0; i < size_; ++i) {
-		chi_stat = 0;
+		for (i = 0; i < size_; ++i) {
+			chi_stat = 0;
 		
-		for (j = 0; j < buf_intervals_amount; ++j) {
-			if (j == 0) {
-				if (mixture_type == "normal")
-					teor_nu = cdf(normal(shift[i], scale[i]), interval_bounds[j]);
-				if (mixture_type == "rayleigh")
-					teor_nu = cdf(rayleigh(scale[i]), interval_bounds[j]);
-			}
-			else {
-				if (j != buf_intervals_amount - 1) {
+			for (j = 0; j < buf_intervals_amount; ++j) {
+				if (j == 0) {
 					if (mixture_type == "normal")
-						teor_nu = cdf(normal(shift[i], scale[i]), interval_bounds[j])
-						- cdf(normal(shift[i], scale[i]), interval_bounds[j-1]);
+						teor_nu = cdf(normal(shift[i], scale[i]), interval_bounds[j]);
 					if (mixture_type == "rayleigh")
-						teor_nu = cdf(rayleigh(scale[i]), interval_bounds[j])
-						- cdf(rayleigh(scale[i]), interval_bounds[j-1]);
+						teor_nu = cdf(rayleigh(scale[i]), interval_bounds[j]);
 				}
 				else {
-					if (mixture_type == "normal")
-						teor_nu = 1 - cdf(normal(shift[i], scale[i]), interval_bounds[j - 1]);
-					if (mixture_type == "rayleigh")
-						teor_nu = 1 - cdf(rayleigh(scale[i]), interval_bounds[j - 1]);
+					if (j != buf_intervals_amount - 1) {
+						if (mixture_type == "normal")
+							teor_nu = cdf(normal(shift[i], scale[i]), interval_bounds[j])
+							- cdf(normal(shift[i], scale[i]), interval_bounds[j-1]);
+						if (mixture_type == "rayleigh")
+							teor_nu = cdf(rayleigh(scale[i]), interval_bounds[j])
+							- cdf(rayleigh(scale[i]), interval_bounds[j-1]);
+					}
+					else {
+						if (mixture_type == "normal")
+							teor_nu = 1 - cdf(normal(shift[i], scale[i]), interval_bounds[j - 1]);
+						if (mixture_type == "rayleigh")
+							teor_nu = 1 - cdf(rayleigh(scale[i]), interval_bounds[j - 1]);
+					}
 				}
+				cout << "teor_nu " << teor_nu << endl;
+				teor_nu = teor_nu * (data_size);
+			
+			
+					chi_stat += (nu_i_bounds[j] - teor_nu)* (nu_i_bounds[j] - teor_nu) / teor_nu;
+			
 			}
-			cout << "teor_nu " << teor_nu << endl;
-			teor_nu = teor_nu * (data_size);
-			
-			
-				chi_stat += (nu_i_bounds[j] - teor_nu)* (nu_i_bounds[j] - teor_nu) / teor_nu;
-			
+			quant_chi = quantile(chi_squared(buf_intervals_amount - 1 - mix_params_amount), 0.95);
+			cout << "classs " << i << ": chi_stat - " << chi_stat << " quant_chi = " << quant_chi << endl;
+			if (chi_stat < quant_chi)
+				flag_mass[i] = 1;
+			else
+				flag_mass[i] = 0;
 		}
-		quant_chi = quantile(chi_squared(buf_intervals_amount - 1 - mix_params_amount), 0.95);
-		cout << "classs " << i << ": chi_stat - " << chi_stat << " quant_chi = " << quant_chi << endl;
-		if (chi_stat < quant_chi)
-			flag_mass[i] = 1;
-		else
-			flag_mass[i] = 0;
-	}
-	for (i = 0; i < size_; ++i) {
-		flag_summ += flag_mass[i];
-		if (flag_mass[i] == 1)
-			flag_idx = i;
-	}
-	delete[] flag_mass;
-	if (flag_summ == 1)
-		return flag_idx;
-	else return -1;
+		for (i = 0; i < size_; ++i) {
+			flag_summ += flag_mass[i];
+			if (flag_mass[i] == 1)
+				flag_idx = i;
+		}
+		delete[] flag_mass;
+		if (flag_summ == 1)
+			return flag_idx;
+		else return -1;
 };
 	//auto chi_stat_computation = [&](double* shift, double* scale, int size_) {
 	//	unsigned i, j;
@@ -4914,10 +4961,13 @@ auto chi_stat_computation = [&](double* shift, double* scale, int size_) {
 
 int SEM_games::kolmogorov_stats(double* data, int data_size, double* mix_shift, double* mix_scale, int  hyp_cl_amount) {
 	unsigned i, j;
-	int k;
+	int k, buf_intervals_amount;
 	bool flag = true;
-	int buf_intervals_amount;
-	
+	double max_d_n, buf_d_n, F_n_curr;
+	int* flag_mass = new int[hyp_cl_amount];
+	double* stats_mass = new double[hyp_cl_amount];
+	int flag_summ = 0;
+	int flag_idx = 0;
 	double max_value = find_k_stat(data, data_size, data_size - 1) + 1;
 	double min_value = find_k_stat(data, data_size, 0);
 	double len_interval = (max_value - min_value) / intervals_amount;
@@ -4940,8 +4990,6 @@ int SEM_games::kolmogorov_stats(double* data, int data_size, double* mix_shift, 
 	auto L_max_calculation = [&](int iter, double mix_shift, double mix_scale) {
 		double buf_max_l = 0;
 		bool flag = false;
-		double max_L = 0;
-		
 		double B;
 		for (int m = 0; m < data_size; m++) {
 			B = 0;
@@ -4965,27 +5013,17 @@ int SEM_games::kolmogorov_stats(double* data, int data_size, double* mix_shift, 
 		}
 		
 		max_L_mass[iter] = buf_max_l;
-		
 	};
 
-	double max_d_n, buf_d_n, F_n_curr;
+	
 	
 	double dn_bound =0.264 ;
 	//double dn_bound = 0.238;
 
 	
-	int* flag_mass = new int[hyp_cl_amount];
-	double* stats_mass = new double[hyp_cl_amount];
-	int flag_summ = 0;
-	int flag_idx = 0;
-
-	//cout << " quant_chi  - " << quant_chi << endl;
-
 	for (i = 0; i < hyp_cl_amount; ++i) {
 		F_n_curr = 0;
 		max_d_n = 0;
-		/*mix_shift[i] = re_mix_shift[i];
-		mix_scale[i] = re_mix_scale[i];*/
 		if (mixture_type == "normal")
 			max_d_n = cdf(normal(mix_shift[i], mix_scale[i]), min_value);
 		if (mixture_type == "rayleigh")
@@ -5052,6 +5090,8 @@ int SEM_games::kolmogorov_stats(double* data, int data_size, double* mix_shift, 
 		return flag_idx;
 	else return -1;
 }
+
+// процедура partition для вычисления прядковых статистик
 
 std::pair<int, int> SEM_games::partition(double* mass, int left, int right, int  ind_pivot) {
 	double pivot = mass[ind_pivot];
@@ -5193,7 +5233,7 @@ void SEM_games::BIC() {
 	cout << "BIC:  " << bic << "     " << big_summ << "\n" << "\n" << endl;
 }
 
-//оценка точности - ошибка 2го рода
+//оценка точности - ошибка 2го рода. распараллеливание через std:: thread
 
 void SEM_games::detect_results() {
 	int thr_nmb = 5;
@@ -5221,7 +5261,7 @@ void SEM_games::detect_results() {
 	cout << endl;
 }
 
-//обработка результатов - поточна версия
+//обработка результатов -  версия для потока std:: thread
 
 void SEM_games::th_detect_results(int beg, int end) {
 	int l_numb = 0;
@@ -5265,7 +5305,8 @@ void SEM_games::th_detect_results(int beg, int end) {
 	}
 }
 
-//вычисление отклонений
+//вычисление отклонений полученных оценок от реальных распределений - для того, чтобы можно было провести
+// между ними сопоставление и вычислить ошибку второго рода
 
 void SEM_games::dist_computation() {
 	unsigned comp_numb = 0;
@@ -5290,7 +5331,7 @@ void SEM_games::dist_computation() {
 	cout << " scales: " << abs(re_mix_scale[0] - mix_scale[buf_numbs[0]-1]) / re_mix_scale[0] << " , " << abs(re_mix_scale[1] - mix_scale[buf_numbs[1]-1]) / re_mix_scale[1] << endl;
 }
 
-// вычисление ошибки 2го рода
+// вычисление ошибки 2го рода - распараллеливание чере open mp
 
 void SEM_games::FAR_computation() {
 	mistake_mix = new float[hyp_cl_amount];
@@ -5311,7 +5352,7 @@ void SEM_games::FAR_computation() {
 	/*n_hit = 0.0;
 	n_miss = 0.0;
 	n_detect = 0.0;*/
-	cout << "x_min, x_max  " << x_min << " " << x_max << " "<<y_min << " " << y_max << endl;
+	
     #pragma omp parallel
 	{
 		#pragma omp for
