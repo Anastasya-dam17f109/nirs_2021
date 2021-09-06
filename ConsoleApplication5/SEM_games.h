@@ -108,7 +108,7 @@ public:
 	SEM_games(int img_size, string mix_t, int amount_targets, int classes, unsigned h_classes, double acc, bool file_flag, bool draw_flag);
 	~SEM_games();
 
-	double* copy_in_one_mass(int x_c, int y_c, int x_l, int y_l);
+	void copy_in_one_mass(double* img, int x_c, int y_c, int x_l, int y_l);
 	void create_splitted_img();
 	void draw_graphics();
 	void img_generator();
@@ -118,7 +118,7 @@ public:
 	void split_image();
 	
 	int chi_square_stats(double* data, int data_size);
-	int kolmogorov_stats(double* data, int data_size);
+	int kolmogorov_stats(double* data, int data_size, double* mix_shift, double* mix_scale, int  hyp_cl_amount);
 	double find_k_stat(double * data, int wind_size, int k_stat);
 	double find_med(double* window, int wind_size);
 	std::pair<int, int> partition(double* mass, int left, int right, int  ind_pivot);

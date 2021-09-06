@@ -21,7 +21,8 @@ SEM_games::SEM_games(int img_size, string mix_t, int amount_targets, int classes
 	else
 		img_generator();
 	cout << "mixture_type: " << mixture_type << endl;
-	mixture_image_one_mass = copy_in_one_mass(0, 0, image_len, image_len);
+
+	copy_in_one_mass(mixture_image_one_mass, 0, 0, image_len, image_len);
 	if (mixture_type == "raygleigh_with_shift") {
 		mix_params_amount = 2;
 		SEMalgorithm_raygh12();
@@ -93,7 +94,7 @@ void SEM_games::memory_allocation() {
 	targs = new target[amount_trg*amount_trg];
 	x_coords = new double[amount_trg*amount_trg];
 	y_coords = new double[amount_trg*amount_trg];
-
+	mixture_image_one_mass = new double[image_len*image_len];
 	mixture_image = new double *[image_len];    // массив указателей (2)
 	class_flag = new int    *[image_len];
 	for (int i = 0; i < image_len; i++) {
@@ -2946,7 +2947,7 @@ void SEM_games::split_image() {
 	int length_ = 5;
 	int iters_i = image_len / length_;
 	int x_l, y_l, idx_class;
-	double* buf_img;
+	double* buf_img = new double [4* length_*length_];
 	auto mix_split_classic = [&](int x_c, int y_c, int x_l, int y_l) {
 		for (int i = x_c; i < x_c+ x_l; i++) {
 			for (int j = y_c; j < y_c+ y_l; j++) {
@@ -2963,7 +2964,14 @@ void SEM_games::split_image() {
 			}
 		}
 	};
-
+	double* buf_mix_shift = new double[hyp_cl_amount+1];
+	double* buf_mix_scale = new double[hyp_cl_amount +1];
+	for (int i = 0; i < hyp_cl_amount; ++i) {
+		buf_mix_shift[i] = mix_shift[i];
+		buf_mix_scale[i] = mix_scale[i];
+	}
+	buf_mix_shift[hyp_cl_amount] = re_mix_shift[0];
+	buf_mix_scale[hyp_cl_amount] = re_mix_scale[0];
 	for (int i = 0; i < iters_i; ++i) {
 		for (int j = 0; j < iters_i; ++j) {
 			if (i == iters_i - 1)
@@ -2974,9 +2982,9 @@ void SEM_games::split_image() {
 				y_l = length_ + image_len % length_;
 			else
 				y_l = length_;
-			buf_img = copy_in_one_mass(i*length_, j*length_, x_l, y_l);
+			 copy_in_one_mass(buf_img, i*length_, j*length_, x_l, y_l);
 			//idx_class = chi_square_stats(buf_img,  x_l*y_l);
-			idx_class = kolmogorov_stats(buf_img, x_l*y_l);
+			idx_class = kolmogorov_stats(buf_img, x_l*y_l, buf_mix_shift, buf_mix_scale, hyp_cl_amount + 1);
 			
 			//cout << " idx_class  " << idx_class << endl;
 			if (idx_class == -1)
@@ -2986,9 +2994,12 @@ void SEM_games::split_image() {
 					for (int m = j * length_; m < j*length_ + y_l; m++) 
 						class_flag[l][m] = idx_class + 1;
 			}
-			delete[] buf_img;
+			
 		}
 	}
+	delete[] buf_mix_shift;
+	delete[] buf_mix_scale;
+	delete[] buf_img;
 
 }
 
@@ -4578,12 +4589,9 @@ double SEM_games::find_med(double* window, int wind_size) {
 
 //вычисление медианы
 
-double* SEM_games::copy_in_one_mass(int x_c, int y_c, int x_l, int y_l) {
+void SEM_games::copy_in_one_mass(double* image_one_mass , int x_c, int y_c, int x_l, int y_l) {
 
-	//double* image_one_mass = new double[image_len*image_len];
-	double* image_one_mass = new double[x_l*y_l];
-	/*for (int i = 0; i < image_len*image_len; ++i) 
-		image_one_mass[i] = mixture_image[i / image_len][i % image_len];*/
+
 	int idx = 0;
 	int i, j ;
 	for (i = x_c; i < x_c+ x_l; ++i) {
@@ -4593,7 +4601,7 @@ double* SEM_games::copy_in_one_mass(int x_c, int y_c, int x_l, int y_l) {
 		}
 	}
 	
-	return image_one_mass;
+	
 }
 
 //вычисление k-той порядковой статистики в массиве
@@ -4643,6 +4651,8 @@ double SEM_games::find_k_stat(double * data, int wind_size, int k_stat) {
 //	}
 //	return 	window[med_index];
 //}
+
+// раскраска через хи-квадрат
 
 int SEM_games::chi_square_stats(double* data, int data_size) {
 	unsigned i, j;
@@ -4902,7 +4912,7 @@ auto chi_stat_computation = [&](double* shift, double* scale, int size_) {
 
 //вычисление критерия колмогорова
 
-int SEM_games::kolmogorov_stats(double* data, int data_size) {
+int SEM_games::kolmogorov_stats(double* data, int data_size, double* mix_shift, double* mix_scale, int  hyp_cl_amount) {
 	unsigned i, j;
 	int k;
 	bool flag = true;
@@ -4912,6 +4922,7 @@ int SEM_games::kolmogorov_stats(double* data, int data_size) {
 	double min_value = find_k_stat(data, data_size, 0);
 	double len_interval = (max_value - min_value) / intervals_amount;
 
+	double *max_L_mass = new double[hyp_cl_amount];
 	for (i = 0; i < intervals_amount; ++i)
 		nu_i[i] = 0;
 	for (i = 0; i < data_size; ++i) {
@@ -4926,6 +4937,37 @@ int SEM_games::kolmogorov_stats(double* data, int data_size) {
 		nu_i[k] = nu_i[k] + 1;
 	}
 	
+	auto L_max_calculation = [&](int iter, double mix_shift, double mix_scale) {
+		double buf_max_l = 0;
+		bool flag = false;
+		double max_L = 0;
+		
+		double B;
+		for (int m = 0; m < data_size; m++) {
+			B = 0;
+			if (mix_scale != 0) {
+				if (mixture_type == "normal")
+					B = (1.0 / (mix_scale))*
+					exp(-(pow(data[m] - mix_shift, 2)) /
+					(2.0 * mix_scale * mix_scale));
+				if (mixture_type == "rayleigh")
+					B = (data[m] / pow(mix_scale, 2))*
+					exp(-(pow(data[m], 2)) /
+					(2.0 * mix_scale * mix_scale));
+			}
+			else {
+				flag = true;
+				break;
+			}
+			
+			if (B > 0)
+				buf_max_l = buf_max_l + log(B / (data_size));
+		}
+		
+		max_L_mass[iter] = buf_max_l;
+		
+	};
+
 	double max_d_n, buf_d_n, F_n_curr;
 	
 	double dn_bound =0.264 ;
@@ -4933,6 +4975,7 @@ int SEM_games::kolmogorov_stats(double* data, int data_size) {
 
 	
 	int* flag_mass = new int[hyp_cl_amount];
+	double* stats_mass = new double[hyp_cl_amount];
 	int flag_summ = 0;
 	int flag_idx = 0;
 
@@ -4972,7 +5015,8 @@ int SEM_games::kolmogorov_stats(double* data, int data_size) {
 
 		}
 		
-		cout << "classs " << i << ": max_d_n - " << max_d_n << "  dn_bound = " << dn_bound << endl;
+		//cout << "classs " << i << ": max_d_n - " << max_d_n << "  dn_bound = " << dn_bound << endl;
+		stats_mass[i] = max_d_n;
 		if (max_d_n < dn_bound)
 			flag_mass[i] = 1;
 		else
@@ -4983,7 +5027,27 @@ int SEM_games::kolmogorov_stats(double* data, int data_size) {
 		if (flag_mass[i] == 1)
 			flag_idx = i;
 	}
+	if (flag_summ > 1) {
+		cout << "conflict! bound value - " << dn_bound<< endl;
+		for (int i = 0; i < hyp_cl_amount; ++i) {
+			cout << "class " << i << " - " << stats_mass[i] << " , l_stats = ";
+			L_max_calculation(i, mix_shift[i], mix_scale[i]);
+			cout << max_L_mass[i] << endl;
+		}
+		int beg_idx = 0;
+		int max_idx = 0;
+
+		for (int m = beg_idx; m < hyp_cl_amount; ++m) {
+			if (max_L_mass[max_idx] < max_L_mass[m])
+				max_idx = m;
+		}
+		flag_summ = 1;
+		flag_idx = max_idx;
+	}
 	delete[] flag_mass;
+	delete[] stats_mass;
+	delete[] max_L_mass;
+
 	if (flag_summ == 1)
 		return flag_idx;
 	else return -1;
